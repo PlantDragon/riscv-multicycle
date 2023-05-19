@@ -1,0 +1,12 @@
+compiler/gcc
+*.wlf
+*.ps
+work/
+.settings/
+*.o
+*.bin
+*.hex
+*.elf
+*.lss
+*.tmp
+
