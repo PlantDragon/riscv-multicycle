@@ -26,13 +26,14 @@ end entity Timer;
 architecture RTL of Timer is
 	signal counter                    : unsigned(compare_size - 1 downto 0) := (others => '0');
 	signal internal_clock             : std_logic                           := '1';
-	signal internal_counter_direction : std_logic                           := '0';
+	signal internal_counter_direction : std_logic                           := '0'; -- @suppress "signal internal_counter_direction is never read"
 	--	type counter_direction_t is (Up, Down);
 
         -- TIMER Signals
     signal timer_reset : std_logic;
-    signal timer_mode  : unsigned(1 downto 0);
-    signal prescaler   : unsigned(15 downto 0);
+    -- signal timer_mode  : unsigned(1 downto 0); original
+    signal timer_mode  : unsigned(2 downto 0);
+    signal prescaler   : unsigned(prescaler_size - 1 downto 0);
     signal top_counter : unsigned(31 downto 0);
     signal compare_0A  : unsigned(31 downto 0);
     signal compare_1A  : unsigned(31 downto 0);
@@ -55,6 +56,7 @@ begin
     interrupts_holder<=output_B(2) & output_A(2) & output_B(1) & output_A(1) & output_B(0) & output_A(0) ;
     interrupts <= interrupts_holder and enable_timer_irq_mask(5 downto 0);
     
+    
     interrupt_edge : process (clock, reset) is
     begin
         if reset = '1' then
@@ -73,7 +75,7 @@ begin
     begin
         if reset = '1' then
             timer_reset<='0';
-            timer_mode <="00";
+            timer_mode <="000";
             prescaler  <= (others => '0');
             top_counter<= (others => '0');
             compare_0A <= (others => '0');
@@ -93,9 +95,9 @@ begin
                     if daddress(15 downto 0) =(TIMER_BASE_ADDRESS + x"0000") then -- TIMER_ADDRESS
                         timer_reset <= ddata_w(0);
                     elsif daddress(15 downto 0) =(TIMER_BASE_ADDRESS + x"0001") then -- TIMER_ADDRESS
-                        timer_mode <= unsigned(ddata_w(1 downto 0));
+                        timer_mode <= unsigned(ddata_w(2 downto 0));
                     elsif daddress(15 downto 0) =(TIMER_BASE_ADDRESS + x"0002") then -- TIMER_ADDRESS
-                        prescaler <= unsigned(ddata_w(15 downto 0));
+                        prescaler <= unsigned(ddata_w(prescaler_size - 1 downto 0));
                     elsif daddress(15 downto 0) =(TIMER_BASE_ADDRESS + x"0003") then -- TIMER_ADDRESS
                         top_counter <= unsigned(ddata_w);
                     elsif daddress(15 downto 0) =(TIMER_BASE_ADDRESS + x"0004") then -- TIMER_ADDRESS
@@ -142,7 +144,7 @@ begin
     end process;
 
 
-	p1 : process(clock, reset, prescaler) is
+	p1 : process(clock, reset, prescaler) is 
 		variable temp_counter : unsigned(prescaler_size - 1 downto 0) := (others => '0');
 	begin
 	    if reset = '1' then
@@ -155,6 +157,8 @@ begin
                     if temp_counter >= prescaler - 1 then
                         internal_clock <= not (internal_clock);
                         temp_counter   := (others => '0');
+                    else
+                        internal_clock <= '1'; -- todo
                     end if;
                 end if;
 			else
@@ -183,7 +187,7 @@ begin
 					counter_direction := '0';
 				else
 					case timer_mode is
-						when "00" =>    -- one shot mode
+						when "000" =>    -- one shot mode
 
 							if counter >= compare_0A - 1 then
 								internal_output_A(0) := '1';
@@ -227,7 +231,7 @@ begin
 								counter              <= counter + 1;
 							end if;
 
-						when "11" =>    -- clear on compare mode, counter is as sawtooth wave
+						when "011" =>    -- clear on compare mode, counter is as sawtooth wave
 
 							-- the counter resets if reaches B comparator.
 							-- the output has a rectangular waveform like a simple PWM, but active when between A and B comparators
@@ -261,7 +265,7 @@ begin
 								internal_output_B(2) := '1';
 							end if;
 
-						when "10" =>    -- clear on compare mode, counter is a centered triangle wave
+						when "010" =>    -- clear on compare mode, counter is a centered triangle wave
 
 							-- the counter change its direction (up or down) when it reaches its maximum possible value
 							-- the output has a rectangular waveform centered to the top value, active when between A and B comparators. 
@@ -357,7 +361,7 @@ begin
 
 							internal_counter_direction <= counter_direction;
 
-						when "01" =>    -- clear on top mode, counter is as sawtooth wave
+						when "001" =>    -- clear on top mode, counter is as sawtooth wave
 
 							-- the counter resets if reaches its maximum possible value
 							-- the output has a rectangular waveform like a simple PWM
@@ -402,6 +406,9 @@ begin
 							else
 								internal_output_B(2) := '0';
 							end if;
+							
+						when "100" =>     -- capture timer
+						    -- code here
 
 						when others =>  -- none / error
 							internal_output_A := (others => '0');
