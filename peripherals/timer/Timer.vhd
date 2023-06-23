@@ -21,7 +21,7 @@ entity Timer is
         timer_interrupt : out std_logic_vector(5 downto 0)
         
         -- changes rk --
-        --captured_time: out unsigned(31 downto 0)
+        --if : in std_logic;
         ------------
 	);
 end entity Timer;
@@ -54,6 +54,7 @@ architecture RTL of Timer is
     signal interrupts_holder: std_logic_vector(5 downto 0);
     
     signal ICF : std_logic;
+    signal captured_time : unsigned(31 downto 0);
     
     constant TIMER_BASE_ADDRESS : unsigned(15 downto 0):=x"0050";
 begin
@@ -126,6 +127,7 @@ begin
     end process;
 
     -- Input register
+    -- Output??
     process(clock, reset)
     begin
         if reset = '1' then
@@ -165,6 +167,8 @@ begin
                     else
                         internal_clock <= '1'; -- todo
                     end if;
+                else -- change here test
+                    internal_clock <= '1';
                 end if;
 			else
 			     internal_clock <= clock;
@@ -172,7 +176,7 @@ begin
 		end if;
 	end process p1;
 
-	p2 : process(internal_clock, reset, ICF) is
+	p2 : process(internal_clock, reset) is
 		variable internal_output_A : std_logic_vector(2 downto 0) := (others => '0');
 		variable internal_output_B : std_logic_vector(2 downto 0) := (others => '0');
 		variable counter_direction : std_logic                    := '0';
@@ -431,6 +435,8 @@ begin
 
 			output_A <= internal_output_A;
 			output_B <= internal_output_B;
+			
+			captured_time <= time;
 
 		end if;
 
