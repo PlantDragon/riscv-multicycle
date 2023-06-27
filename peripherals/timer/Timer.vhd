@@ -18,10 +18,10 @@ entity Timer is
         d_rd        : in  std_logic;
         dcsel       : in std_logic_vector(1 downto 0);
         dmask       : in std_logic_vector(3 downto 0);
-        timer_interrupt : out std_logic_vector(5 downto 0)
+        timer_interrupt : out std_logic_vector(5 downto 0);
         
         -- changes rk --
-        --if : in std_logic;
+        ifcap : in std_logic
         ------------
 	);
 end entity Timer;
@@ -54,7 +54,7 @@ architecture RTL of Timer is
     signal interrupts_holder: std_logic_vector(5 downto 0);
     
     signal ICF : std_logic;
-    signal captured_time : unsigned(31 downto 0);
+    signal captured_time : std_logic_vector(31 downto 0);
     
     constant TIMER_BASE_ADDRESS : unsigned(15 downto 0):=x"0050";
 begin
@@ -120,6 +120,8 @@ begin
                         compare_2B <= unsigned(ddata_w);
                     elsif daddress(15 downto 0) =(TIMER_BASE_ADDRESS + x"000b") then -- TIMER_ADDRESS
                         enable_timer_irq_mask <= ddata_w;
+                    elsif daddress(15 downto 0) = (TIMER_BASE_ADDRESS + x"000c") then --checar endereco
+                        ICF <= ifcap;
                     end if;
                 end if;
             end if;
@@ -127,7 +129,6 @@ begin
     end process;
 
     -- Input register
-    -- Output??
     process(clock, reset)
     begin
         if reset = '1' then
@@ -143,6 +144,8 @@ begin
                     elsif daddress(15 downto 0) =(TIMER_BASE_ADDRESS + x"000a") then
                         ddata_r(2 downto 0) <= output_A(2 downto 0);
                         ddata_r(5 downto 3) <= output_B(2 downto 0);
+                    elsif daddress(15 downto 0) = (TIMER_BASE_ADDRESS + x"000c") then --checar endereco
+                        ddata_r(31 downto 0) <= captured_time;
                     end if;
                 end if;
             end if;
@@ -167,8 +170,8 @@ begin
                     else
                         internal_clock <= '1'; -- todo
                     end if;
-                else -- change here test
-                    internal_clock <= '1';
+                else
+                    -- internal_clock <= '';
                 end if;
 			else
 			     internal_clock <= clock;
@@ -422,12 +425,15 @@ begin
 						        time := counter(31 downto 0);
 						        ICF <= '0';
 						    else
+						        -- time := (others => '0');
 						        counter <= counter +1;
 						    end if;
 
 						when others =>  -- none / error
 							internal_output_A := (others => '0');
 							internal_output_B := (others => '0');
+							
+							time := (others => '0');
 
 					end case;
 				end if;
@@ -436,7 +442,7 @@ begin
 			output_A <= internal_output_A;
 			output_B <= internal_output_B;
 			
-			captured_time <= time;
+			captured_time <= std_logic_vector(time);
 
 		end if;
 

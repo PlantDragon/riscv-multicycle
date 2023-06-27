@@ -40,14 +40,14 @@ architecture RTL of tb_core_timer is
 
 	signal idata : std_logic_vector(31 downto 0);
 
-	signal daddress : natural;
+	signal daddress : unsigned (31 downto 0);
 	signal ddata_r  : std_logic_vector(31 downto 0);
 	signal ddata_w  : std_logic_vector(31 downto 0);
 	signal dmask    : std_logic_vector(3 downto 0);
 	signal dcsel    : std_logic_vector(1 downto 0);
 	signal d_we     : std_logic := '0';
 
-	signal iaddress : integer range 0 to IMEMORY_WORDS - 1 := 0;
+	signal iaddress : unsigned (0 to IMEMORY_WORDS - 1) := (others => '0');
 
 	signal address : std_logic_vector(31 downto 0);
 
@@ -71,7 +71,7 @@ architecture RTL of tb_core_timer is
 
 	signal csel_uart : std_logic;
 
-	signal dmemory_address : natural;
+	signal dmemory_address : unsigned (31 downto 0);
     signal d_sig : std_logic;
     signal ddata_r_gpio: std_logic_vector(31 downto 0);
     signal interrupts: std_logic_vector(31 downto 0);
@@ -156,9 +156,9 @@ begin
 	process(d_rd, dcsel, daddress, iaddress)
 	begin
 		if (d_rd = '1') and (dcsel = "00") then
-			address <= std_logic_vector(to_unsigned(daddress, 32));
+			address <= std_logic_vector(daddress);
 		else
-			address <= std_logic_vector(to_unsigned(iaddress, 32));
+			address <= std_logic_vector(iaddress(0 to 31));
 		end if;
 	end process;
 
@@ -173,7 +173,7 @@ begin
 			q       => idata
 		);
 
-	dmemory_address <= to_integer(to_unsigned(daddress, 10));
+	dmemory_address <= daddress;
 	-- Data Memory RAM
 	dmem : entity work.dmemory
 		generic map(
@@ -204,12 +204,13 @@ begin
     -- Softcore instatiation
     myRiscv : entity work.core
         generic map(
-            IMEMORY_WORDS => IMEMORY_WORDS,
-            DMEMORY_WORDS => DMEMORY_WORDS
+            IADDRESS_BUS_SIZE => IMEMORY_WORDS,
+            DADDRESS_BUS_SIZE => DMEMORY_WORDS
         )
         port map(
             clk      => clk,
             rst      => rst,
+            clk_32x  => clk,
             iaddress => iaddress,
             idata    => idata,
             daddress => daddress,
